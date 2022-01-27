@@ -31,12 +31,12 @@ services:
       - "1883:1883"
       - "8120:8120"
     volumes:
-      - mosquitto_data:/mosquitto/config
+      - ./mosquitto:/mosquitto/config
     restart: unless-stopped
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
-    container_name: elasticsearch
+    container_name: possybl_elasticsearch
     environment:
       - xpack.security.enabled=false
       - discovery.type=single-node
@@ -56,17 +56,17 @@ services:
       - 9300:9300
 
   kibana:
-    container_name: kibana
+    container_name: possybl_kibana
     image: docker.elastic.co/kibana/kibana:7.16.3
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
       - 5601:5601
     depends_on:
-      - elasticsearch
+      - possybl_elasticsearch
 
 volumes:
   mongodb_data:
   redis_data:
-  mosquitto_data:
   elasticsearch_data:
+
