@@ -102,36 +102,74 @@ services:
       timeout: 10s
       retries: 120
 
+  enterprisesearch:
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    image: docker.elastic.co/enterprise-search/enterprise-search:${ELASTIC_STACK_VERSION}
+    container_name: possybl_enterprisesearch
+    volumes:
+      - elasticsearch_certs:/usr/share/enterprise-search/config/certs
+      - enterprisesearch_data:/usr/share/enterprise-search/config
+    ports:
+      - "3002:3002"
+    environment:
+      - SERVERNAME=enterprisesearch
+      - secret_management.encryption_keys=[4a2cd3f81d39bf28738c10db0ca782095ffac07279561809eecc722e0c20eb09]
+      - allow_es_settings_modification=true
+      - elasticsearch.host=https://elasticsearch:9200
+      - elasticsearch.username=elastic
+      - elasticsearch.password=${ELASTIC_PASSWORD}
+      - elasticsearch.ssl.enabled=true
+      - elasticsearch.ssl.certificate_authority=/usr/share/enterprise-search/config/certs/ca/ca.crt
+      - kibana.external_url=http://kibana:5601
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:3002 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
   kibana:
-      depends_on:
-        elasticsearch:
-          condition: service_healthy
-      image: docker.elastic.co/kibana/kibana:${ELASTIC_STACK_VERSION}
-      container_name: possybl_kibana
-      volumes:
-        - elasticsearch_certs:/usr/share/kibana/config/certs
-        - kibana_data:/usr/share/kibana/data
-      ports:
-        - "5601:5601"
-      environment:
-        - SERVERNAME=kibana
-        - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
-        - ELASTICSEARCH_USERNAME=kibana_system
-        - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
-        - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
-      deploy:
-        resources:
-          limits:
-            memory: 1G
-      healthcheck:
-        test:
-          [
-            "CMD-SHELL",
-            "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
-          ]
-        interval: 10s
-        timeout: 10s
-        retries: 120
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      enterprisesearch:
+        condition: service_healthy
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_STACK_VERSION}
+    container_name: possybl_kibana
+    volumes:
+      - elasticsearch_certs:/usr/share/kibana/config/certs
+      - kibana_data:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: '["https://elasticsearch:9200"]'
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_PASSWORD}
+      ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: config/certs/ca/ca.crt
+      ENTERPRISESEARCH_HOST: http://enterprisesearch:3002
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
 
   mongodb:
     image: mongo:${MONGO_VERSION}
@@ -176,5 +214,6 @@ volumes:
   elasticsearch_data:
   elasticsearch_certs:
   kibana_data:
+  enterprisesearch_data:
 
 
